@@ -1,0 +1,183 @@
+/* Glassmorphism Styles */
+
+/* Apple-style glassmorphism effect */
+.glassmorphism {
+  background: rgba(20, 20, 20, 0.3) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15) !important;
+  position: relative !important;
+  overflow: hidden !important;
+}
+
+/* Ensure chat messages can go under the header */
+.messages-container {
+  padding-top: 0;
+  z-index: 0;
+  position: relative;
+  width: 100%;
+  /* Allow content to flow from the very top */
+  margin-top: 0;
+}
+
+/* Add subtle glass reflection effect */
+.glass-reflection::before {
+  content: "";
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.08) 0%,
+    rgba(255, 255, 255, 0.03) 25%,
+    rgba(255, 255, 255, 0) 50%,
+    rgba(255, 255, 255, 0.03) 75%,
+    rgba(255, 255, 255, 0.08) 100%
+  );
+  transform: rotate(45deg);
+  pointer-events: none;
+  z-index: 0;
+  animation: glass-shimmer 10s infinite linear;
+}
+
+/* Animation for glass shimmer effect */
+@keyframes glass-shimmer {
+  0% {
+    background-position: -100% -100%;
+  }
+  100% {
+    background-position: 200% 200%;
+  }
+}
+
+.glass-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.glass-shimmer::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    45deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.03) 25%,
+    rgba(255, 255, 255, 0.06) 50%,
+    rgba(255, 255, 255, 0.03) 75%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  background-size: 200% 200%;
+  animation: glass-shimmer 12s linear infinite;
+  pointer-events: none;
+  z-index: 0;
+  border-radius: inherit;
+}
+
+/* Apple-style glass effect for header */
+.apple-glass-header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1100;
+  /* Enhance glass effect */
+  background: rgba(20, 20, 20, 0.3) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 0 !important;
+  margin: 0 !important;
+  width: 100% !important;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1) !important;
+  overflow: hidden !important;
+}
+
+/* Apply rounded corners only on larger screens */
+@media (min-width: 600px) {
+  .apple-glass-header {
+    border-radius: 0 0 16px 16px !important;
+    margin: 0 8px !important;
+    width: calc(100% - 16px) !important;
+  }
+}
+
+/* Ensure content flows under the glass header */
+.content-under-glass {
+  position: absolute;
+  z-index: 0;
+  padding-top: 0;
+  margin-top: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100vh;
+  overflow: auto;
+  background-attachment: fixed;
+  background-position: center;
+  background-size: 100px 100px;
+  background-blend-mode: soft-light;
+}
+
+/* Make messages appear to go under the glass */
+.message-appear {
+  animation: slideUp 0.3s ease-out;
+  position: relative;
+  z-index: 1;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: 16px;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+/* Add glass shimmer effect to message bubbles */
+.message-appear::before {
+  content: "";
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.05) 0%,
+    rgba(255, 255, 255, 0.02) 25%,
+    rgba(255, 255, 255, 0) 50%,
+    rgba(255, 255, 255, 0.02) 75%,
+    rgba(255, 255, 255, 0.05) 100%
+  );
+  transform: rotate(45deg);
+  pointer-events: none;
+  z-index: 0;
+  animation: message-shimmer 12s infinite linear;
+}
+
+@keyframes message-shimmer {
+  0% {
+    background-position: -100% -100%;
+  }
+  100% {
+    background-position: 200% 200%;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
