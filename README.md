@@ -76,6 +76,43 @@ A private chat application designed exclusively for long-distance couples. This 
 - Custom themes
 - End-to-end encryption
 
+## Deployment Guide
+
+### Prerequisites
+1. [MongoDB Atlas](https://www.mongodb.com/cloud/atlas) account
+2. [Vercel](https://vercel.com/) account
+3. [GitHub](https://github.com/) account
+
+### MongoDB Atlas Setup
+1. Create a free MongoDB Atlas account
+2. Create a new cluster (M0 free tier is sufficient)
+3. Create a database user with read/write permissions
+4. Whitelist all IP addresses (0.0.0.0/0) for development or specific IPs for production
+5. Get your MongoDB connection string
+
+### Vercel Deployment
+
+#### Full Stack Deployment
+1. Push your code to a GitHub repository
+2. Log in to Vercel and create a new project
+3. Import your GitHub repository
+4. Configure the project:
+   - Build Command: `npm run vercel-build`
+   - Output Directory: Leave empty
+   - Install Command: `npm install`
+   - Development Command: `npm run dev`
+5. Add environment variables:
+   - `MONGO_URI`: Your MongoDB Atlas connection string
+   - `JWT_SECRET`: A secure random string for JWT token generation
+   - `NODE_ENV`: Set to `production`
+6. Deploy the project
+
+**Note**: The project is configured to build both the backend and frontend automatically using custom build scripts. The `vercel.json` file uses Vercel's new configuration format with a single build command and rewrites for routing API requests to the backend and serving the frontend static files.
+
+#### Important Notes
+- Vercel's free tier has limitations for WebSocket connections. The chat application may experience disconnections after periods of inactivity.
+- For production use with heavy traffic, consider upgrading to a paid plan or using a different hosting provider that better supports WebSockets.
+
 ## License
 
 This project is licensed under the MIT License

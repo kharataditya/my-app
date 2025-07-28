@@ -3,6 +3,10 @@
   "version": "1.0.0",
   "description": "A private chat application for a long-distance couple",
   "main": "server.js",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
@@ -10,7 +14,12 @@
     "client-install": "cd client && npm install",
     "server-install": "npm install",
     "install-all": "npm install && cd client && npm install",
-    "dev-all": "concurrently \"npm run dev\" \"npm run client\""
+    "dev-all": "concurrently \"npm run dev\" \"npm run client\"",
+    "build": "echo 'Building server' && npm install",
+    "vercel-build": "node vercel-build.js",
+    "client-build": "cd client && npm install && npm run build",
+    "deploy-helper": "node deploy.js",
+    "setup-mongodb": "node setup-mongodb.js"
   },
   "keywords": [
     "chat",

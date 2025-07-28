@@ -1,0 +1,142 @@
+/* App.css */
+
+* {
+  box-sizing: border-box;
+}
+
+body, html {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: 'Roboto', 'Helvetica', 'Arial', sans-serif;
+  overscroll-behavior-y: contain; /* Prevents pull-to-refresh on mobile */
+  -webkit-tap-highlight-color: transparent; /* Removes tap highlight on mobile */
+  touch-action: manipulation; /* Improves touch responsiveness */
+  background-color: #0a0a0a; /* Ensure dark background */
+}
+
+.App {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  max-width: 100vw;
+  overflow-x: hidden; /* Prevents horizontal scrolling on mobile */
+}
+
+/* Mobile-specific adjustments */
+@media (max-width: 600px) {
+  /* Smaller scrollbar for mobile */
+  ::-webkit-scrollbar {
+    width: 4px;
+  }
+  
+  /* Adjust input fields for better mobile experience */
+  input, textarea, select, button {
+    font-size: 16px !important; /* Prevents iOS zoom on focus */
+  }
+  
+  /* Prevent text selection on double-tap */
+  * {
+    user-select: none;
+  }
+  
+  /* Allow text selection in input fields and message content */
+  input, textarea, .message-content {
+    user-select: text;
+  }
+}
+
+/* Custom scrollbar - subtle design with rounded corners */
+::-webkit-scrollbar {
+  width: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 20px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(233, 30, 99, 0.2);
+  border-radius: 20px;
+  border: 1px solid transparent;
+  background-clip: padding-box;
+  transition: all 0.3s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(233, 30, 99, 0.4);
+  border-radius: 20px;
+}
+
+/* Firefox scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(233, 30, 99, 0.2) transparent;
+}
+
+/* Animation for heart icon */
+@keyframes heartbeat {
+  0% {
+    transform: scale(1);
+  }
+  25% {
+    transform: scale(1.1);
+  }
+  50% {
+    transform: scale(1);
+  }
+  75% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.heartbeat {
+  animation: heartbeat 1.5s infinite;
+}
+
+/* Typing indicator animation */
+@keyframes typing {
+  0% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.3;
+  }
+}
+
+.typing-indicator {
+  animation: typing 1.5s infinite;
+}
+
+/* Message appear animation */
+@keyframes messageAppear {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.message-appear {
+  animation: messageAppear 0.3s ease-out;
+  position: relative;
+  z-index: 0; /* Lower z-index to allow messages to go behind the form */
+  margin-bottom: 12px;
+}
+
+/* Add a container for messages to ensure they can go under the form */
+.messages-container {
+  position: relative;
+  z-index: 0; /* Lower z-index to allow messages to go behind the form */
+  padding-bottom: 80px; /* Add padding at the bottom to ensure messages don't get hidden behind the form */
+}

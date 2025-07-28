@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "buildCommand": "npm run vercel-build",
+  "outputDirectory": "client/build",
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/server.js" },
+    { "source": "/socket.io/(.*)", "destination": "/server.js" },
+    { "source": "/(.*)", "destination": "/client/build/$1" }
+  ]
+}
