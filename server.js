@@ -17,6 +17,12 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
+// Request logging middleware for debugging
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+  next();
+});
+
 app.use(express.json());
 
 // Connect to MongoDB
@@ -24,6 +30,11 @@ let dbConnection = null;
 (async () => {
   dbConnection = await connectDB();
 })();
+
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ status: 'ok', environment: process.env.NODE_ENV, timestamp: new Date().toISOString() });
+});
 
 // API Routes
 app.use('/api/messages', require('./routes/messages'));
@@ -39,7 +50,12 @@ const io = socketIo(server, {
     credentials: false,
     allowedHeaders: ['Content-Type', 'Authorization']
   },
-  transports: ['websocket', 'polling']
+  transports: ['websocket', 'polling'],
+  path: process.env.NODE_ENV === 'production' ? '/socket.io' : undefined,
+  pingTimeout: 60000, // Increase ping timeout for better connection stability
+  pingInterval: 25000, // Increase ping interval
+  connectTimeout: 30000, // Increase connection timeout
+  allowEIO3: true // Allow Engine.IO 3 compatibility for older clients
 });
 
 // Import Message model

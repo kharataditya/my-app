@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
-import Login from './components/Login';
-import Chat from './components/Chat';
+import LoginSupabase from './components/LoginSupabase';
+import ChatSupabase from './components/ChatSupabase';
 import './App.css';
 
 const theme = createTheme({
@@ -96,7 +96,7 @@ function App() {
               path="/" 
               element={
                 !user ? 
-                <Login onLogin={handleLogin} /> : 
+                <LoginSupabase onLogin={handleLogin} /> : 
                 <Navigate to="/chat" />
               } 
             />
@@ -104,7 +104,7 @@ function App() {
               path="/chat" 
               element={
                 user ? 
-                <Chat 
+                <ChatSupabase 
                   user={user} 
                   partner={partner} 
                   onLogout={handleLogout} 

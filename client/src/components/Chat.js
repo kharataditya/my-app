@@ -27,15 +27,21 @@ import './GlassmorphismStyles.css';
 
 // Initialize socket connection with debug enabled
 const socket = io(process.env.NODE_ENV === 'production' 
-  ? window.location.origin
+  ? `${window.location.protocol}//${window.location.host}`
   : 'http://localhost:5000', {
   transports: ['websocket', 'polling'],
   reconnection: true,
-  reconnectionAttempts: 5,
+  reconnectionAttempts: Infinity, // Keep trying to reconnect indefinitely
   reconnectionDelay: 1000,
+  reconnectionDelayMax: 5000,
+  timeout: 30000, // Increased timeout
   autoConnect: true,
   debug: true,
-  withCredentials: false
+  withCredentials: false,
+  forceNew: false,
+  path: process.env.NODE_ENV === 'production' ? '/socket.io' : undefined,
+  pingTimeout: 60000, // Increase ping timeout for better connection stability
+  pingInterval: 25000 // Increase ping interval
 });
 
 // For debugging - expose socket globally
@@ -48,10 +54,61 @@ socket.on('connect', () => {
 
 socket.on('connect_error', (error) => {
   console.error('Socket connection error:', error);
+  
+  // Log additional information for debugging
+  console.log('Current environment:', process.env.NODE_ENV);
+  console.log('Connection URL:', process.env.NODE_ENV === 'production' 
+    ? `${window.location.protocol}//${window.location.host}` 
+    : 'http://localhost:5000');
+  console.log('Socket options:', {
+    path: process.env.NODE_ENV === 'production' ? '/socket.io' : undefined,
+    transports: ['websocket', 'polling']
+  });
+  
+  // Attempt to reconnect after a delay
+  setTimeout(() => {
+    console.log('Attempting to reconnect socket...');
+    socket.connect();
+  }, 5000);
 });
 
 socket.on('disconnect', (reason) => {
   console.log('Socket disconnected:', reason);
+});
+
+// Create a function to update connection status in all components
+const updateConnectionStatus = (status) => {
+  // This will be called by the Chat component to update its state
+  window.dispatchEvent(new CustomEvent('socket_status_change', { detail: status }));
+};
+
+// Update global connection status on socket events
+socket.on('connect', () => {
+  updateConnectionStatus('connected');
+});
+
+socket.on('disconnect', () => {
+  updateConnectionStatus('disconnected');
+});
+
+socket.on('connect_error', () => {
+  updateConnectionStatus('error');
+});
+
+socket.on('reconnect_attempt', () => {
+  updateConnectionStatus('connecting');
+});
+
+socket.on('reconnect', () => {
+  updateConnectionStatus('connected');
+});
+
+socket.on('reconnect_error', () => {
+  updateConnectionStatus('error');
+});
+
+socket.on('reconnect_failed', () => {
+  updateConnectionStatus('failed');
 });
 
 const Chat = ({ user, partner, onLogout }) => {
@@ -60,14 +117,55 @@ const Chat = ({ user, partner, onLogout }) => {
   const [isPartnerOnline, setIsPartnerOnline] = useState(false);
   const [isPartnerTyping, setIsPartnerTyping] = useState(false);
   const [typingTimeout, setTypingTimeout] = useState(null);
+  const [connectionStatus, setConnectionStatus] = useState(socket.connected ? 'connected' : 'connecting');
   const messagesEndRef = useRef(null);
   
   // Use a ref to track unread messages to persist across renders
   const unreadMessagesRef = useRef([]);
 
+  // Function to fetch messages via HTTP API as fallback
+  const fetchMessagesViaHttp = async () => {
+    try {
+      console.log('Attempting to fetch messages via HTTP API');
+      const apiUrl = process.env.NODE_ENV === 'production'
+        ? `/api/messages/${user.username}/${partner.username}`
+        : `http://localhost:5000/api/messages/${user.username}/${partner.username}`;
+      
+      console.log('Fetching from:', apiUrl);
+      const response = await fetch(apiUrl);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log('Received messages via HTTP:', data.length);
+      setMessages(data);
+    } catch (error) {
+      console.error('Error fetching messages via HTTP:', error);
+    }
+  };
+
+  // Listen for socket status changes
+  useEffect(() => {
+    const handleSocketStatusChange = (event) => {
+      console.log('Socket status changed:', event.detail);
+      setConnectionStatus(event.detail);
+    };
+    
+    window.addEventListener('socket_status_change', handleSocketStatusChange);
+    
+    return () => {
+      window.removeEventListener('socket_status_change', handleSocketStatusChange);
+    };
+  }, []);
+
   // Connect to socket and handle events
   useEffect(() => {
     console.log('Connecting with user:', user);
+    
+    // Update initial connection status
+    setConnectionStatus(socket.connected ? 'connected' : 'connecting');
     
     // Ensure socket is connected
     if (!socket.connected) {
@@ -93,19 +191,63 @@ const Chat = ({ user, partner, onLogout }) => {
         console.log('Requesting previous messages for:', user, partner.username);
         socket.emit('getPreviousMessages', { user: user.username, partner: partner.username });
       });
+      
+      // If socket doesn't connect within 5 seconds, try HTTP fallback
+      setTimeout(() => {
+        if (!socket.connected) {
+          console.log('Socket still not connected after timeout, using HTTP fallback');
+          fetchMessagesViaHttp();
+        }
+      }, 5000);
     }
+    
+    // Function to mark message as read via HTTP API as fallback
+    const markMessageReadViaHttp = async (messageId, reader) => {
+      try {
+        console.log('Attempting to mark message as read via HTTP API');
+        const apiUrl = process.env.NODE_ENV === 'production'
+          ? `/api/messages/read/${messageId}/${reader}`
+          : `http://localhost:5000/api/messages/read/${messageId}/${reader}`;
+        
+        console.log('Sending to:', apiUrl);
+        const response = await fetch(apiUrl, {
+          method: 'PUT'
+        });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        console.log('Message marked as read via HTTP');
+        return true;
+      } catch (error) {
+        console.error('Error marking message as read via HTTP:', error);
+        return false;
+      }
+    };
     
     // Function to mark unread messages as read when window gets focus
     const handleWindowFocus = () => {
       console.log('Window focused, marking any unread messages as read');
-      if (unreadMessagesRef.current.length > 0 && socket.connected) {
+      if (unreadMessagesRef.current.length > 0) {
         console.log(`Marking ${unreadMessagesRef.current.length} unread messages as read`);
-        unreadMessagesRef.current.forEach(msgId => {
-          socket.emit('markMessageRead', {
-            messageId: msgId,
-            reader: user.username
+        
+        // Try to mark messages as read via socket first if connected
+        if (socket.connected) {
+          unreadMessagesRef.current.forEach(msgId => {
+            socket.emit('markMessageRead', {
+              messageId: msgId,
+              reader: user.username
+            });
           });
-        });
+        } else {
+          // Fallback to HTTP API if socket is not connected
+          console.log('Socket not connected, falling back to HTTP API for marking messages as read');
+          unreadMessagesRef.current.forEach(msgId => {
+            markMessageReadViaHttp(msgId, user.username);
+          });
+        }
+        
         // Clear the unread messages array
         unreadMessagesRef.current = [];
       }
@@ -135,10 +277,16 @@ const Chat = ({ user, partner, onLogout }) => {
       // Only mark message as read if the window is active/focused
       if (document.hasFocus()) {
         console.log('Window is focused, marking message as read');
-        socket.emit('markMessageRead', {
-          messageId: messageData.id,
-          reader: user.username
-        });
+        if (socket.connected) {
+          socket.emit('markMessageRead', {
+            messageId: messageData.id,
+            reader: user.username
+          });
+        } else {
+          // Fallback to HTTP API if socket is not connected
+          console.log('Socket not connected, using HTTP API to mark message as read');
+          markMessageReadViaHttp(messageData.id, user.username);
+        }
       } else {
         console.log('Window is not focused, message will be marked as read when user returns');
         // Add to unread messages ref to be marked as read when window gets focus
@@ -260,6 +408,46 @@ const Chat = ({ user, partner, onLogout }) => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  // Function to send message via HTTP API as fallback
+  const sendMessageViaHttp = async (messageData) => {
+    try {
+      console.log('Attempting to send message via HTTP API');
+      const apiUrl = process.env.NODE_ENV === 'production'
+        ? `/api/messages`
+        : `http://localhost:5000/api/messages`;
+      
+      console.log('Sending to:', apiUrl);
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(messageData)
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log('Message sent via HTTP:', data);
+      
+      // Update the pending message with the confirmed message data
+      setMessages(prevMessages => 
+        prevMessages.map(msg => 
+          msg.pending && msg.message === messageData.message && msg.sender === messageData.sender
+            ? { ...data, pending: false }
+            : msg
+        )
+      );
+      
+      return data;
+    } catch (error) {
+      console.error('Error sending message via HTTP:', error);
+      return null;
+    }
+  };
+
   // Handle sending a message
   const handleSendMessage = (e) => {
     e.preventDefault();
@@ -275,25 +463,53 @@ const Chat = ({ user, partner, onLogout }) => {
       timestamp: new Date().toISOString(),
     };
     
-    console.log('Emitting privateMessage event with data:', messageData);
-    socket.emit('privateMessage', messageData);
-    
     // Add message to local state immediately for better UX
     // This will be replaced when the server confirms the message
-    setMessages(prevMessages => [...prevMessages, {
+    const pendingMessage = {
       ...messageData,
       pending: true, // Mark as pending until confirmed by server
       id: `pending-${Date.now()}` // Add temporary ID for tracking
-    }]);
+    };
     
+    setMessages(prevMessages => [...prevMessages, pendingMessage]);
     setMessage('');
     
-    // Clear typing indicator
-    socket.emit('typing', {
-      sender: user.username,
-      recipient: partner.username,
-      isTyping: false,
-    });
+    // Try to send via socket.io first
+    if (socket.connected) {
+      console.log('Emitting privateMessage event with data:', messageData);
+      socket.emit('privateMessage', messageData);
+      
+      // Clear typing indicator
+      socket.emit('typing', {
+        sender: user.username,
+        recipient: partner.username,
+        isTyping: false,
+      });
+    } else {
+      // Fallback to HTTP API if socket is not connected
+      console.log('Socket not connected, falling back to HTTP API');
+      sendMessageViaHttp(messageData);
+    }
+    
+    // If socket doesn't confirm the message within 3 seconds, try HTTP fallback
+    const messageTimeout = setTimeout(() => {
+      // Check if the message is still pending
+      setMessages(prevMessages => {
+        const stillPending = prevMessages.some(msg => 
+          msg.id === pendingMessage.id && msg.pending
+        );
+        
+        if (stillPending && !socket.connected) {
+          console.log('Message still pending after timeout, trying HTTP fallback');
+          sendMessageViaHttp(messageData);
+        }
+        
+        return prevMessages;
+      });
+    }, 3000);
+    
+    // Clean up timeout on next render
+    return () => clearTimeout(messageTimeout);
   };
 
   // Handle typing indicator
@@ -484,6 +700,33 @@ const Chat = ({ user, partner, onLogout }) => {
             >
               Couple Chat
             </Typography>
+          </Box>
+          
+          {/* Connection status indicator */}
+          <Box sx={{ position: 'absolute', top: 8, right: 8, zIndex: 2 }}>
+            <Tooltip 
+              title={`Connection: ${connectionStatus}`} 
+              placement="bottom"
+              arrow
+            >
+              <div>
+                <Box 
+                  sx={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: '50%',
+                    background: connectionStatus === 'connected' ? 'rgba(76, 175, 80, 0.8)' : // Green for connected
+                               connectionStatus === 'connecting' ? 'rgba(255, 152, 0, 0.8)' : // Orange for connecting
+                               connectionStatus === 'disconnected' ? 'rgba(244, 67, 54, 0.8)' : // Red for disconnected
+                               'rgba(244, 67, 54, 0.8)', // Red for error or failed
+                    boxShadow: connectionStatus === 'connected' ? '0 0 5px rgba(76, 175, 80, 0.8)' :
+                               connectionStatus === 'connecting' ? '0 0 5px rgba(255, 152, 0, 0.8)' :
+                               '0 0 5px rgba(244, 67, 54, 0.8)',
+                    transition: 'all 0.3s ease'
+                  }}
+                />
+              </div>
+            </Tooltip>
           </Box>
           
           <Box sx={{ flexGrow: 1, display: 'flex', justifyContent: 'center', mx: 2, position: 'relative' }}>

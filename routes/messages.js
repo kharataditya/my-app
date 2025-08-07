@@ -42,7 +42,7 @@ router.post('/', async (req, res) => {
   }
 });
 
-// Mark messages as read
+// Mark messages as read (bulk update by sender/recipient)
 router.put('/read/:sender/:recipient', async (req, res) => {
   try {
     const { sender, recipient } = req.params;
@@ -50,10 +50,39 @@ router.put('/read/:sender/:recipient', async (req, res) => {
     // Update all unread messages from sender to recipient
     const result = await Message.updateMany(
       { sender, recipient, read: false },
-      { $set: { read: true } }
+      { $set: { read: true, readTimestamp: new Date().toISOString() } }
     );
     
-    res.json({ updated: result.nModified });
+    res.json({ updated: result.nModified || result.modifiedCount });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+// Mark a specific message as read by ID
+router.put('/read/:messageId/:reader', async (req, res) => {
+  try {
+    const { messageId, reader } = req.params;
+    
+    // Find the message and verify the reader is the recipient
+    const message = await Message.findOne({ id: messageId });
+    
+    if (!message) {
+      return res.status(404).json({ error: 'Message not found' });
+    }
+    
+    // Verify the reader is the recipient of the message
+    if (message.recipient !== reader) {
+      return res.status(403).json({ error: 'Not authorized to mark this message as read' });
+    }
+    
+    // Update the message
+    message.read = true;
+    message.readTimestamp = new Date().toISOString();
+    await message.save();
+    
+    res.json({ updated: true, messageId });
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server Error');
